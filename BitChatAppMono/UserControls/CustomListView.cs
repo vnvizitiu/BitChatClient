@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace BitChatAppMono.UserControls
+namespace BitChatApp.UserControls
 {
     public partial class CustomListView : UserControl
     {
@@ -133,43 +133,43 @@ namespace BitChatAppMono.UserControls
         {
             if (_items.Count > 0)
             {
-                //find total height of items including padding
-                int totalHeightOfItems = 0;
+                int requiredItemWidth = this.Width - _borderPadding * 2 - this.Padding.Left - this.Padding.Right;
 
-                foreach (CustomListViewItem control in _items)
+                if (base.VerticalScroll.Visible)
+                    requiredItemWidth -= 17;
+
+                bool doneOnce = false;
+
+                while (true)
                 {
-                    totalHeightOfItems += control.Height + (_borderPadding * 2);
-                }
+                    //check width
+                    if (requiredItemWidth != _items[0].Width)
+                    {
+                        for (int i = 0; i < _items.Count; i++)
+                            _items[i].Width = requiredItemWidth;
+                    }
 
-                int requiredItemWidth;
+                    //check item placement
+                    _items[0].Location = new Point(this.Padding.Left, this.Padding.Top + this.AutoScrollPosition.Y);
 
-                if (totalHeightOfItems > this.Height)
-                {
-                    //this means scrolling is enabled
-                    requiredItemWidth = this.Width - _borderPadding * 2 - this.Padding.Left - this.Padding.Right - 17;
-                }
-                else
-                {
-                    //this means scrolling is disabled
-                    requiredItemWidth = this.Width - _borderPadding * 2 - this.Padding.Left - this.Padding.Right;
-                }
+                    for (int i = 1; i < _items.Count; i++)
+                    {
+                        CustomListViewItem previousControl = _items[i - 1];
+                        CustomListViewItem currentControl = _items[i];
 
-                //check width
-                if (requiredItemWidth != _items[0].Width)
-                {
-                    for (int i = 0; i < _items.Count; i++)
-                        _items[i].Width = requiredItemWidth;
-                }
+                        currentControl.Location = new Point(previousControl.Location.X, previousControl.Location.Y + previousControl.Height + this.Padding.Bottom);
+                    }
 
-                //check item placement
-                _items[0].Location = new Point(this.Padding.Left, this.Padding.Top + this.AutoScrollPosition.Y);
+                    CustomListViewItem lastItem = _items[_items.Count - 1];
 
-                for (int i = 1; i < _items.Count; i++)
-                {
-                    CustomListViewItem previousControl = _items[i - 1];
-                    CustomListViewItem currentControl = _items[i];
+                    if (!doneOnce && !base.VerticalScroll.Visible && ((lastItem.Top + lastItem.Height) > this.Height))
+                    {
+                        requiredItemWidth -= 17;
+                        doneOnce = true;
+                        continue;
+                    }
 
-                    currentControl.Location = new Point(previousControl.Location.X, previousControl.Location.Y + previousControl.Height + this.Padding.Bottom);
+                    break;
                 }
             }
         }
@@ -185,10 +185,10 @@ namespace BitChatAppMono.UserControls
             this.ResumeLayout();
 
             if (ItemClick != null)
-                ItemClick(this, EventArgs.Empty);
+                ItemClick(sender, EventArgs.Empty);
         }
 
-        void item_DoubleClick(object sender, EventArgs e)
+        private void item_DoubleClick(object sender, EventArgs e)
         {
             this.SuspendLayout();
 
@@ -197,10 +197,10 @@ namespace BitChatAppMono.UserControls
             this.ResumeLayout();
 
             if (ItemDoubleClick != null)
-                ItemDoubleClick(this, EventArgs.Empty);
+                ItemDoubleClick(sender, EventArgs.Empty);
         }
 
-        void item_MouseUp(object sender, MouseEventArgs e)
+        private void item_MouseUp(object sender, MouseEventArgs e)
         {
             CustomListViewItem obj = sender as CustomListViewItem;
 
@@ -211,35 +211,33 @@ namespace BitChatAppMono.UserControls
             this.ResumeLayout();
 
             if (selected && (ItemClick != null))
-                ItemClick(this, EventArgs.Empty);
-
-            e = new MouseEventArgs(e.Button, e.Clicks, obj.Location.X + e.X, obj.Location.Y + e.Y, e.Delta);
+                ItemClick(sender, EventArgs.Empty);
 
             if (ItemMouseUp != null)
-                ItemMouseUp(this, e);
+                ItemMouseUp(sender, e);
         }
 
-        void item_KeyPress(object sender, KeyPressEventArgs e)
+        private void item_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (ItemKeyPress != null)
-                ItemKeyPress(this, e);
+                ItemKeyPress(sender, e);
         }
 
-        void item_KeyUp(object sender, KeyEventArgs e)
+        private void item_KeyUp(object sender, KeyEventArgs e)
         {
             if (ItemKeyUp != null)
-                ItemKeyUp(this, e);
+                ItemKeyUp(sender, e);
         }
 
-        void item_KeyDown(object sender, KeyEventArgs e)
+        private void item_KeyDown(object sender, KeyEventArgs e)
         {
             if (ItemKeyDown != null)
-                ItemKeyDown(this, e);
+                ItemKeyDown(sender, e);
         }
 
-        void item_SortList(object sender, EventArgs e)
+        private void item_SortList(object sender, EventArgs e)
         {
-            _items.Sort(delegate(CustomListViewItem item1, CustomListViewItem item2) { return string.Compare(item1.ToString(), item2.ToString()); });
+            _items.Sort(delegate (CustomListViewItem item1, CustomListViewItem item2) { return string.Compare(item1.ToString(), item2.ToString()); });
 
             this.SuspendLayout();
 
@@ -282,7 +280,7 @@ namespace BitChatAppMono.UserControls
             this.ResumeLayout();
         }
 
-        public void InsertItemsAtBeginning(IEnumerable<CustomListViewItem> items)
+        public void InsertItemsAtTop(IEnumerable<CustomListViewItem> items)
         {
             this.SuspendLayout();
 
@@ -305,8 +303,7 @@ namespace BitChatAppMono.UserControls
 
             if (_items.Count > 0)
                 previousTopItem = _items[0];
-
-
+            
             _items.InsertRange(0, items);
             this.Controls.AddRange(_items.ToArray());
 
@@ -339,7 +336,7 @@ namespace BitChatAppMono.UserControls
             this.Controls.Add(item);
 
             if (_sortItems)
-                _items.Sort(delegate(CustomListViewItem item1, CustomListViewItem item2) { return string.Compare(item1.ToString(), item2.ToString()); });
+                _items.Sort(delegate (CustomListViewItem item1, CustomListViewItem item2) { return string.Compare(item1.ToString(), item2.ToString()); });
 
             ReArrangeItems();
 
@@ -367,8 +364,6 @@ namespace BitChatAppMono.UserControls
                 this.Controls.Remove(item);
                 _items.Remove(item);
 
-                ReArrangeItems();
-
                 item.Click -= item_Clicked;
                 item.DoubleClick -= item_DoubleClick;
                 item.MouseUp -= item_MouseUp;
@@ -376,6 +371,8 @@ namespace BitChatAppMono.UserControls
                 item.KeyUp -= item_KeyUp;
                 item.KeyDown -= item_KeyDown;
                 item.SortList -= item_SortList;
+
+                ReArrangeItems();
 
                 if (_selectedItem == item)
                 {
@@ -413,6 +410,43 @@ namespace BitChatAppMono.UserControls
             this.ResumeLayout();
         }
 
+        public void TrimListFromTop(int totalItemsToKeep)
+        {
+            if (_items.Count > totalItemsToKeep)
+            {
+                int totalItemsToRemove = _items.Count - totalItemsToKeep;
+                List<CustomListViewItem> itemsToRemove = new List<CustomListViewItem>(totalItemsToRemove);
+
+                for (int i = 0; i < totalItemsToRemove; i++)
+                {
+                    itemsToRemove.Add(_items[i]);
+                }
+
+                this.SuspendLayout();
+
+                foreach (CustomListViewItem item in itemsToRemove)
+                {
+                    this.Controls.Remove(item);
+                    _items.Remove(item);
+
+                    item.Click -= item_Clicked;
+                    item.DoubleClick -= item_DoubleClick;
+                    item.MouseUp -= item_MouseUp;
+                    item.KeyPress -= item_KeyPress;
+                    item.KeyUp -= item_KeyUp;
+                    item.KeyDown -= item_KeyDown;
+                    item.SortList -= item_SortList;
+
+                    if (_selectedItem == item)
+                        _selectedItem = null;
+                }
+
+                ReArrangeItems();
+
+                this.ResumeLayout();
+            }
+        }
+
         public CustomListViewItem GetFirstItem()
         {
             if (_items.Count == 0)
@@ -448,6 +482,11 @@ namespace BitChatAppMono.UserControls
         {
             if (_items.Count > 0)
                 this.ScrollControlIntoView(item);
+        }
+
+        public bool IsScrolledToBottom()
+        {
+            return (base.VerticalScroll.Maximum - base.VerticalScroll.Value) <= this.Height;
         }
 
         #endregion

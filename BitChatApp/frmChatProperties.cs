@@ -17,24 +17,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using BitChatClient;
-using TechnitiumLibrary.Net.BitTorrent;
+using BitChatCore;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
 using System.Net;
-using System.Text;
 using System.Windows.Forms;
+using TechnitiumLibrary.Net.BitTorrent;
 
 namespace BitChatApp
 {
     public partial class frmChatProperties : Form
     {
+        #region variables
+
         BitChat _chat;
         BitChatProfile _profile;
 
         Timer _timer;
+
+        #endregion
+
+        #region constructor
 
         public frmChatProperties(BitChat chat, BitChatProfile profile)
         {
@@ -43,17 +46,20 @@ namespace BitChatApp
             _chat = chat;
             _profile = profile;
 
-            chkLANChat.Checked = !_chat.EnableTracking;
+            this.Text = _chat.NetworkDisplayName + " - Properties";
 
-            if (_chat.NetworkType == BitChatClient.Network.BitChatNetworkType.PrivateChat)
-            {
+            chkLANChat.Checked = !_chat.EnableTracking;
+            chkLANChat.CheckedChanged += chkLANChat_CheckedChanged;
+
+            txtNetwork.Text = chat.NetworkName;
+
+            if (chat.NetworkName == null)
+                txtSecret.ReadOnly = true;
+
+            txtSecret.Text = _chat.SharedSecret;
+
+            if (_chat.NetworkType == BitChatCore.Network.BitChatNetworkType.PrivateChat)
                 label1.Text = "Peer's Email Address";
-                txtNetwork.Text = chat.PeerEmailAddress.Address;
-            }
-            else
-            {
-                txtNetwork.Text = chat.NetworkName;
-            }
 
             ListViewItem dhtItem = lstTrackerInfo.Items.Add("DHT");
 
@@ -73,11 +79,15 @@ namespace BitChatApp
 
             _timer = new Timer();
             _timer.Interval = 1000;
-            _timer.Tick += _timer_Tick;
+            _timer.Tick += timer_Tick;
             _timer.Start();
         }
 
-        private void _timer_Tick(object sender, EventArgs e)
+        #endregion
+
+        #region form code
+
+        private void timer_Tick(object sender, EventArgs e)
         {
             lock (lstTrackerInfo.Items)
             {
@@ -120,7 +130,7 @@ namespace BitChatApp
                             strUpdateIn += updateIn.Seconds + "s";
                         }
 
-                        item.SubItems[1].Text = lastException == null ? "working" : lastException.Message;
+                        item.SubItems[1].Text = lastException == null ? "working" : "[" + tracker.RetriesDone + "] " + lastException.Message;
                         item.SubItems[2].Text = strUpdateIn;
                         item.SubItems[3].Text = peerCount.ToString();
                     }
@@ -137,11 +147,6 @@ namespace BitChatApp
         private void lstTrackerInfo_DoubleClick(object sender, EventArgs e)
         {
             showPeersToolStripMenuItem_Click(null, null);
-        }
-
-        private void btnClose_Click(object sender, EventArgs e)
-        {
-            this.Close();
         }
 
         private void lstTrackerInfo_MouseUp(object sender, MouseEventArgs e)
@@ -283,9 +288,9 @@ namespace BitChatApp
         private void chkShowSecret_CheckedChanged(object sender, EventArgs e)
         {
             if (chkShowSecret.Checked)
-                txtSecret.Text = _chat.SharedSecret;
+                txtSecret.PasswordChar = '\0';
             else
-                txtSecret.Text = "########";
+                txtSecret.PasswordChar = '#';
         }
 
         private void copyTrackerToolStripMenuItem_Click(object sender, EventArgs e)
@@ -346,5 +351,30 @@ namespace BitChatApp
         {
             _chat.EnableTracking = !chkLANChat.Checked;
         }
+
+        private void btnOK_Click(object sender, EventArgs e)
+        {
+            if (txtSecret.Text != _chat.SharedSecret)
+                DialogResult = DialogResult.OK;
+            else
+                DialogResult = DialogResult.Cancel;
+
+            this.Close();
+        }
+
+        private void btnClose_Click(object sender, EventArgs e)
+        {
+            DialogResult = DialogResult.Cancel;
+            this.Close();
+        }
+
+        #endregion
+
+        #region properties
+
+        public string SharedSecret
+        { get { return txtSecret.Text; } }
+
+        #endregion
     }
 }

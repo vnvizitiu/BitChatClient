@@ -1,4 +1,4 @@
-﻿namespace BitChatAppMono
+﻿namespace BitChatApp
 {
     partial class frmImageDialog
     {
@@ -117,6 +117,7 @@
             this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Select Profile Picture";
+            this.Load += new System.EventHandler(this.frmImageDialog_Load);
             ((System.ComponentModel.ISupportInitialize)(this.picImage)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();

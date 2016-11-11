@@ -17,9 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using BitChatClient.Network;
+using BitChatCore.Network;
 using System;
-using System.Collections.Generic;
 using System.Net.Mail;
 using System.Windows.Forms;
 
@@ -33,21 +32,16 @@ namespace BitChatApp
 
         #endregion
 
-        #region Form Code
+        #region constructor
 
-        public frmAddChat()
-        {
-            InitializeComponent();
-
-            _type = BitChatNetworkType.GroupChat;
-            this.Text = "Add Group Chat";
-        }
-
-        public frmAddChat(BitChatNetworkType type)
+        public frmAddChat(BitChatNetworkType type, string networkNameOrPeerEmailAddress)
         {
             InitializeComponent();
 
             _type = type;
+
+            if (networkNameOrPeerEmailAddress != null)
+                txtNetworkNameOrPeerEmailAddress.Text = networkNameOrPeerEmailAddress;
 
             if (type == BitChatNetworkType.PrivateChat)
             {
@@ -57,6 +51,45 @@ namespace BitChatApp
                 label3.Text = "(case insensitive, example: user@example.com)";
                 label4.Text = "Both peers must use same Shared Secret and enter each other's email address.";
             }
+            else
+            {
+                this.Text = "Add Group Chat";
+
+                chkSendInvitation.Visible = false;
+                txtInvitationMessage.Visible = false;
+                label6.Visible = false;
+                label7.Visible = false;
+
+                this.Height = 220;
+            }
+        }
+
+        #endregion
+
+        #region form code
+
+        private void txtSharedSecret_TextChanged(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtSharedSecret.Text))
+            {
+                chkSendInvitation.Enabled = true;
+                txtInvitationMessage.Enabled = chkSendInvitation.Checked;
+            }
+            else
+            {
+                chkSendInvitation.Enabled = false;
+                txtInvitationMessage.Enabled = false;
+            }
+        }
+
+        private void chkLANChat_CheckedChanged(object sender, EventArgs e)
+        {
+            chkDhtOnlyTracking.Enabled = !chkLANChat.Checked;
+        }
+
+        private void chkSendInvitation_CheckedChanged(object sender, EventArgs e)
+        {
+            txtInvitationMessage.Enabled = chkSendInvitation.Checked;
         }
 
         private void btnOK_Click(object sender, EventArgs e)
@@ -82,12 +115,17 @@ namespace BitChatApp
                 catch
                 {
                     MessageBox.Show("Please enter a valid email address of your peer to chat with.", "Invalid Email Address", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
+                if (chkSendInvitation.Enabled && chkSendInvitation.Checked && string.IsNullOrEmpty(txtInvitationMessage.Text))
+                {
+                    MessageBox.Show("Please enter an invitation message for the new private chat.", "Missing Invitation Message", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
             }
 
-            this.DialogResult = System.Windows.Forms.DialogResult.OK;
+            this.DialogResult = DialogResult.OK;
             this.Close();
         }
 
@@ -96,8 +134,32 @@ namespace BitChatApp
             this.Close();
         }
 
+        #endregion
+
+        #region properties
+
+        public string NetworkNameOrPeerEmailAddress
+        { get { return txtNetworkNameOrPeerEmailAddress.Text; } }
+
+        public string SharedSecret
+        { get { return txtSharedSecret.Text; } }
+
         public bool OnlyLanChat
         { get { return chkLANChat.Checked; } }
+
+        public bool DhtOnlyTracking
+        { get { return chkDhtOnlyTracking.Enabled && chkDhtOnlyTracking.Checked; } }
+
+        public string InvitationMessage
+        {
+            get
+            {
+                if (chkSendInvitation.Enabled && chkSendInvitation.Checked)
+                    return txtInvitationMessage.Text;
+                else
+                    return null;
+            }
+        }
 
         #endregion
     }

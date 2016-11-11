@@ -23,7 +23,7 @@ using System.Threading;
 using System.Windows.Forms;
 using TechnitiumLibrary.Security.Cryptography;
 
-namespace BitChatAppMono
+namespace BitChatApp
 {
     static class Program
     {
@@ -106,35 +106,25 @@ NgEA
 
                 #region profile manager
 
-                bool loaded = false;
-
-                //read local app data folder
-                string localAppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Technitium", "BitChat");
-
-                if (!Directory.Exists(localAppData))
-                    Directory.CreateDirectory(localAppData);
-
                 while (true)
                 {
-                    frmProfileManager mgr = new frmProfileManager(localAppData, loaded);
+                    frmProfileManager mgr = new frmProfileManager();
 
                     if (mgr.ShowDialog() == DialogResult.OK)
                     {
-                        loaded = true;
-
                         try
                         {
                             if (mgr.Profile != null)
                             {
                                 bool loadMainForm = false;
 
-                                if ((mgr.Profile.LocalCertificateStore.Certificate.Type == CertificateType.Normal) && (mgr.Profile.LocalCertificateStore.Certificate.Capability == CertificateCapability.KeyExchange))
+                                if ((mgr.Profile.LocalCertificateStore.Certificate.Type == CertificateType.User) && (mgr.Profile.LocalCertificateStore.Certificate.Capability == CertificateCapability.UserAuthentication))
                                 {
                                     loadMainForm = true;
                                 }
                                 else
                                 {
-                                    using (frmRegister frm = new frmRegister(mgr.Profile, mgr.ProfileFilePath, false))
+                                    using (frmRegister frm = new frmRegister(mgr.Profile, mgr.ProfileFilePath, mgr.IsPortableApp, mgr.ProfileFolder, false))
                                     {
                                         loadMainForm = (frm.ShowDialog() == DialogResult.OK);
                                     }

@@ -24,6 +24,7 @@ using System.Reflection;
 using System.Security.Principal;
 using System.Threading;
 using System.Windows.Forms;
+using TechnitiumLibrary.Net.Firewall;
 using TechnitiumLibrary.Security.Cryptography;
 
 namespace BitChatApp
@@ -93,24 +94,34 @@ NgEA
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
 
-                #region check for admin priviledge
+                #region check windows firewall entry
 
-                if (!(new WindowsPrincipal(WindowsIdentity.GetCurrent())).IsInRole(WindowsBuiltInRole.Administrator))
+                string appPath = Assembly.GetExecutingAssembly().CodeBase.Replace("file:///", "").Replace("/", "\\");
+                bool firewallEntryExists = WindowsFirewallEntryExists(appPath);
+
+                if (!firewallEntryExists)
                 {
-                    string appPath = Assembly.GetExecutingAssembly().CodeBase.Replace("file:///", "").Replace("/", "\\");
+                    bool isAdmin = (new WindowsPrincipal(WindowsIdentity.GetCurrent())).IsInRole(WindowsBuiltInRole.Administrator);
 
-                    ProcessStartInfo processInfo = new ProcessStartInfo(appPath, string.Join(" ", args));
-
-                    processInfo.UseShellExecute = true;
-                    processInfo.Verb = "runas";
-
-                    try
+                    if (isAdmin)
                     {
-                        Process.Start(processInfo);
-                        return;
+                        AddWindowsFirewallEntry(appPath);
                     }
-                    catch
-                    { }
+                    else
+                    {
+                        ProcessStartInfo processInfo = new ProcessStartInfo(appPath, string.Join(" ", args));
+
+                        processInfo.UseShellExecute = true;
+                        processInfo.Verb = "runas";
+
+                        try
+                        {
+                            Process.Start(processInfo);
+                            return;
+                        }
+                        catch
+                        { }
+                    }
                 }
 
                 #endregion
@@ -131,35 +142,25 @@ NgEA
 
                 #region profile manager
 
-                bool loaded = false;
-
-                //read local app data folder
-                string localAppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Technitium", "BitChat");
-
-                if (!Directory.Exists(localAppData))
-                    Directory.CreateDirectory(localAppData);
-
                 while (true)
                 {
-                    frmProfileManager mgr = new frmProfileManager(localAppData, loaded);
+                    frmProfileManager mgr = new frmProfileManager();
 
                     if (mgr.ShowDialog() == DialogResult.OK)
                     {
-                        loaded = true;
-
                         try
                         {
                             if (mgr.Profile != null)
                             {
                                 bool loadMainForm = false;
 
-                                if ((mgr.Profile.LocalCertificateStore.Certificate.Type == CertificateType.Normal) && (mgr.Profile.LocalCertificateStore.Certificate.Capability == CertificateCapability.KeyExchange))
+                                if ((mgr.Profile.LocalCertificateStore.Certificate.Type == CertificateType.User) && (mgr.Profile.LocalCertificateStore.Certificate.Capability == CertificateCapability.UserAuthentication))
                                 {
                                     loadMainForm = true;
                                 }
                                 else
                                 {
-                                    using (frmRegister frm = new frmRegister(mgr.Profile, mgr.ProfileFilePath, false))
+                                    using (frmRegister frm = new frmRegister(mgr.Profile, mgr.ProfileFilePath, mgr.IsPortableApp, mgr.ProfileFolder, false))
                                     {
                                         loadMainForm = (frm.ShowDialog() == DialogResult.OK);
                                     }
@@ -193,6 +194,98 @@ NgEA
             catch (Exception ex)
             {
                 MessageBox.Show("Error! " + ex.Message + "\r\n\r\nClick OK to quit the application.", "Error - Bit Chat", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        #endregion
+
+        #region private
+
+        private static bool WindowsFirewallEntryExists(string appPath)
+        {
+            switch (Environment.OSVersion.Platform)
+            {
+                case PlatformID.Win32NT:
+                    if (Environment.OSVersion.Version.Major > 5)
+                    {
+                        //vista and above
+                        try
+                        {
+                            return WindowsFirewall.RuleExistsVista("", appPath) == RuleStatus.Allowed;
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            return WindowsFirewall.ApplicationExists(appPath) == RuleStatus.Allowed;
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    }
+
+                default:
+                    return true;
+            }
+        }
+
+        private static void AddWindowsFirewallEntry(string appPath)
+        {
+            switch (Environment.OSVersion.Platform)
+            {
+                case PlatformID.Win32NT:
+                    if (Environment.OSVersion.Version.Major > 5)
+                    {
+                        //vista and above
+                        try
+                        {
+                            RuleStatus status = WindowsFirewall.RuleExistsVista("", appPath);
+
+                            switch (status)
+                            {
+                                case RuleStatus.Blocked:
+                                case RuleStatus.Disabled:
+                                    WindowsFirewall.RemoveRuleVista("", appPath);
+                                    break;
+
+                                case RuleStatus.Allowed:
+                                    return;
+                            }
+
+                            WindowsFirewall.AddRuleVista("Bit Chat", "Allow incoming connection request to Bit Chat application.", FirewallAction.Allow, appPath, Protocol.ANY);
+                        }
+                        catch
+                        { }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            RuleStatus status = WindowsFirewall.ApplicationExists(appPath);
+
+                            switch (status)
+                            {
+                                case RuleStatus.Disabled:
+                                    WindowsFirewall.RemoveApplication(appPath);
+                                    break;
+
+                                case RuleStatus.Allowed:
+                                    return;
+                            }
+
+                            WindowsFirewall.AddApplication("Bit Chat", appPath);
+                        }
+                        catch
+                        { }
+                    }
+
+                    break;
             }
         }
 
