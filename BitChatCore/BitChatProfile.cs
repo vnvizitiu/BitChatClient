@@ -55,6 +55,8 @@ namespace BitChatCore
                 new Uri("http://opensharing.org:2710/announce"),
                 new Uri("http://bt.careland.com.cn:6969/announce"),
                 new Uri("http://tracker.ex.ua/announce"),
+                new Uri("udp://ipv6.tracker.harry.lu:80/announce"),
+                new Uri("http://ipv6.tracker.harry.lu:80/announce")
             };
 
         static readonly DateTime _epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -170,7 +172,7 @@ namespace BitChatCore
 
             //check if email address domain exists
             {
-                DnsClient dns = new DnsClient("8.8.8.8");
+                DnsClient dns = new DnsClient(IPAddress.Parse("8.8.8.8"));
 
                 try
                 {
@@ -182,7 +184,7 @@ namespace BitChatCore
                 }
                 catch
                 {
-                    DnsDatagram response = DnsClient.ResolveViaRootNameServers(_localCertStore.Certificate.IssuedTo.EmailAddress.Host, DnsRecordType.MX);
+                    DnsDatagram response = DnsClient.ResolveViaRootNameServers(_localCertStore.Certificate.IssuedTo.EmailAddress.Host, DnsResourceRecordType.MX);
                     if (response.Header.RCODE == DnsResponseCode.NameError)
                         throw new NameErrorDnsClientException("The domain of your email address '" + _localCertStore.Certificate.IssuedTo.EmailAddress.Host + "' does not exists. Please check if you have entered correct email address.");
                 }

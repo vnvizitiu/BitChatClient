@@ -279,12 +279,27 @@ namespace BitChatCore.Network.Connections
                         if (NetUtilities.IsIPv4MappedIPv6Address(remotePeerEP.Address))
                             remotePeerEP = new IPEndPoint(NetUtilities.ConvertFromIPv4MappedIPv6Address(remotePeerEP.Address), remotePeerEP.Port);
 
-                        AcceptConnectionInitiateProtocol(new NetworkStream(socket, true), remotePeerEP);
+                        ThreadPool.QueueUserWorkItem(AcceptConnectionInitiateProtocolAsync, new object[] { new NetworkStream(socket, true), remotePeerEP });
                     }
                     catch
                     { }
                 }
                 while (true);
+            }
+            catch
+            { }
+        }
+
+        private void AcceptConnectionInitiateProtocolAsync(object parameter)
+        {
+            object[] parameters = parameter as object[];
+
+            Stream networkStream = parameters[0] as Stream;
+            IPEndPoint remotePeerEP = parameters[1] as IPEndPoint;
+
+            try
+            {
+                AcceptConnectionInitiateProtocol(networkStream, remotePeerEP);
             }
             catch
             { }
@@ -530,7 +545,7 @@ namespace BitChatCore.Network.Connections
             { }
         }
 
-        internal Connection AcceptConnectionInitiateProtocol(Stream networkStream, IPEndPoint remotePeerEP)
+        internal void AcceptConnectionInitiateProtocol(Stream networkStream, IPEndPoint remotePeerEP)
         {
             //read version
             int version = networkStream.ReadByte();
@@ -567,7 +582,7 @@ namespace BitChatCore.Network.Connections
                         networkStream.Close();
                     }
 
-                    return connection;
+                    return;
 
                 default:
                     networkStream.Close();
